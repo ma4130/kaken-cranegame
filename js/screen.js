@@ -78,32 +78,9 @@ const arrowTex = canvasTex(256, 128, (g) => {
 const getLabel = new THREE.Mesh(new THREE.PlaneGeometry(2, 1), new THREE.MeshBasicMaterial({ map: arrowTex, transparent: true }));
 getLabel.rotation.x = -Math.PI / 2; getLabel.position.set(-3.8, .02, 2.8); scene.add(getLabel);
 
-const cabM = mat(0xff5fa2), trimM = mat(0xffd93b), frameM = mat(0x3b2a99, { metalness: .3, roughness: .4 });
-box(FX * 2 + .8, 3.2, FZ * 2 + .8, cabM, 0, -2, 0);
-box(FX * 2 + .9, .3, FZ * 2 + .9, trimM, 0, -.45, 0);
-for (const sx of [-1, 1]) for (const sz of [-1, 1]) box(.4, 8, .4, frameM, sx * (FX + .2), 3.8, sz * (FZ + .2));
-box(FX * 2 + .8, 1.3, FZ * 2 + .8, cabM, 0, 8.45, 0);
-const signTex = canvasTex(1024, 128, (g, w, h) => {
-  g.fillStyle = '#ffd93b'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#e0247a'; g.font = '900 92px "M PLUS Rounded 1c", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('★ クレーンゲーム ★', w / 2, h / 2 + 6);
-});
-const sign = new THREE.Mesh(new THREE.PlaneGeometry(FX * 2 + .2, 1.05), new THREE.MeshBasicMaterial({ map: signTex }));
-sign.position.set(0, 8.45, FZ + .41); scene.add(sign);
-document.fonts?.ready.then(() => { signTex.image.getContext('2d'); redrawSign(); });
-function redrawSign() {
-  const g = signTex.image.getContext('2d'), w = 1024, h = 128;
-  g.fillStyle = '#ffd93b'; g.fillRect(0, 0, w, h);
-  g.fillStyle = '#e0247a'; g.font = '900 92px "M PLUS Rounded 1c", sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText('★ クレーンゲーム ★', w / 2, h / 2 + 6); signTex.needsUpdate = true;
-}
-const back = new THREE.Mesh(new THREE.PlaneGeometry(FX * 2, 8), new THREE.MeshStandardMaterial({ color: 0x9fd8ff, transparent: true, opacity: .18 }));
-back.position.set(0, 3.8, -FZ - .2); scene.add(back);
-const bulbs = [];
-for (let i = 0; i < 14; i++) {
-  const b = new THREE.Mesh(new THREE.SphereGeometry(.13, 12, 8), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffee88 }));
-  b.position.set(-FX + (i + .5) * (FX * 2 / 14), 7.72, FZ + .42); scene.add(b); bulbs.push(b);
-}
+// 台（外枠・柱・看板はなし。床と うすい土台だけ）
+box(FX * 2 + .5, .5, FZ * 2 + .5, mat(0xff5fa2), 0, -.66, 0);
+box(FX * 2 + .7, .22, FZ * 2 + .7, mat(0xffd93b), 0, -.5, 0);
 
 // クレーン
 const steelM = mat(0xd8dcec, { metalness: .8, roughness: .25 });
@@ -488,8 +465,7 @@ function frame(t) {
   const dt = Math.min(.05, (t - prev) / 1000); prev = t;
   if (!manual) update(dt);
   const sway = phase === 'idle' ? 2.2 : .5;
-  camera.position.set(Math.sin(now * .25) * sway, 8.4, 19.5); camera.lookAt(0, 3.7, 0);
-  bulbs.forEach((b, i) => { b.material.emissiveIntensity = (Math.floor(now * 3) + i) % 2 ? 1.6 : .15; });
+  camera.position.set(Math.sin(now * .25) * sway, 9.4, 18.2); camera.lookAt(0, 3.2, 0);
   marker.material.opacity = .55 + .35 * Math.sin(now * 6);
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
