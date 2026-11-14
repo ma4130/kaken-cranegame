@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>クレーンゲーム コントローラー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: linear-gradient(180deg, #2a1a7a, #6b2fa0 60%, #ff7ab8); color: #fff;
+    font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", sans-serif; overscroll-behavior: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  body { display: flex; flex-direction: column; padding: max(14px, env(safe-area-inset-top)) 16px max(14px, env(safe-area-inset-bottom)); min-height: 100dvh; }
+  h1 { margin: 0 0 8px; font-size: 22px; text-align: center; text-shadow: 0 3px 0 #ff5fa2; }
+  .view { display: none; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: 16px; text-align: center; }
+  .view.on { display: flex; }
+  p { margin: 0; font-size: 18px; line-height: 1.5; }
+  .big { font-size: 30px; font-weight: 900; }
+  .huge { font-size: 96px; line-height: 1; }
+  input { font: inherit; font-size: 22px; padding: 12px 14px; border-radius: 14px; border: 3px solid #ffd93b; width: min(80vw, 300px); text-align: center; user-select: text; -webkit-user-select: text; }
+  button { font: inherit; font-weight: 900; color: #1b1447; border: 0; border-radius: 18px; background: #ffd93b; box-shadow: 0 6px 0 #c79a00; padding: 14px 28px; font-size: 22px; touch-action: manipulation; }
+  button:active { transform: translateY(4px); box-shadow: 0 2px 0 #c79a00; }
+  #status { font-size: 20px; font-weight: 900; min-height: 60px; display: grid; place-items: center; }
+  #left { font-size: 16px; color: #ffd93b; }
+  #pads { display: flex; gap: 14px; width: 100%; flex: 1; max-height: 52vh; }
+  .pad { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; border-radius: 28px;
+    font-size: 18px; touch-action: none; padding: 8px; }
+  .pad .arrow { font-size: 76px; line-height: 1; }
+  .pad .num { font-size: 26px; }
+  #bx { background: #ff5fa2; box-shadow: 0 10px 0 #b8286a; color: #fff; }
+  #bz { background: #4dc3ff; box-shadow: 0 10px 0 #1f7fb3; color: #fff; }
+  .pad.down { transform: translateY(8px); box-shadow: 0 2px 0 rgba(0,0,0,.4) !important; filter: brightness(1.15); }
+  .pad.off { opacity: .28; filter: grayscale(.6); }
+  #coll { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; font-size: 34px; min-height: 40px; max-width: 320px; }
+  .small { font-size: 14px; opacity: .8; }
+  #result { position: fixed; inset: 0; background: rgba(27,20,71,.93); display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; z-index: 5; }
+  #result.on { display: flex; }
+</style>
+</head>
+<body>
+<h1>🕹️ クレーンゲーム</h1>
+
+<section class="view" id="v-load"><p>つないでいるよ…</p></section>
+
+<section class="view" id="v-noroom">
+  <div class="huge">📺</div>
+  <p>スクリーンが まだ ついていないみたい。<br>すこし まってね。</p>
+</section>
+
+<section class="view" id="v-join">
+  <p class="big">なまえを いれてね</p>
+  <input id="name" maxlength="8" placeholder="ニックネーム" autocomplete="off">
+  <button id="join">さんかする！</button>
+  <p class="small">スクリーンに なまえが でるよ（8もじまで）</p>
+</section>
+
+<section class="view" id="v-wait">
+  <div class="huge">⏳</div>
+  <p class="big" id="waitpos">じゅんばんまち</p>
+  <p>じぶんの ばんが きたら<br>この がめんが コントローラーに なるよ</p>
+</section>
+
+<section class="view" id="v-play">
+  <div id="status"></div>
+  <div id="left"></div>
+  <div id="pads">
+    <button class="pad" id="bx"><span class="num">①</span><span class="arrow">→</span><span>よこ</span></button>
+    <button class="pad" id="bz"><span class="num">②</span><span class="arrow">↑</span><span>おく</span></button>
+  </div>
+  <p class="small">ボタンを おしている あいだ うごくよ。はなすと とまる！</p>
+</section>
+
+<section class="view" id="v-done">
+  <p class="big">あそんでくれて ありがとう！</p>
+  <p>ゲットした けいひん</p>
+  <div id="coll"></div>
+  <button id="again">もういちど ならぶ</button>
+</section>
+
+<div id="result"><div class="huge" id="r-emoji"></div><p class="big" id="r-text"></p><p id="r-sub"></p></div>
+
+<script type="module">
+import { createNet } from './js/net.js';
+
+const qs = new URLSearchParams(location.search);
+const room = (qs.get('room') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+const LOCAL = qs.has('local');
+const $ = (id) => document.getElementById(id);
+const show = (v) => document.querySelectorAll('.view').forEach((e) => e.classList.toggle('on', e.id === 'v-' + v));
+
+// このスマホの ID と状態（タブを閉じるまで おぼえておく）
+const SK = 'crane-me-' + room;
+const me = Object.assign({ id: 'p' + Math.random().toString(36).slice(2, 10), epoch: null, join: 0, n: 0, seen: false, lastResult: 0 },
+  JSON.parse(sessionStorage.getItem(SK) || '{}'));
+const save = () => sessionStorage.setItem(SK, JSON.stringify(me));
+const coll = JSON.parse(localStorage.getItem('crane-collection') || '[]');
+$('name').value = localStorage.getItem('crane-name') || '';
+
+let net = null, roomData = null, holding = null, sentUp = null;
+
+function renderColl() { $('coll').textContent = coll.length ? coll.join('') : 'まだ ないよ'; }
+
+function render() {
+  const r = roomData;
+  if (!r || Date.now() - (r.t || 0) > 5 * 60e3) { show('noroom'); return; }
+  if (me.epoch !== r.epoch) { show('join'); return; }
+  const isCur = r.cur && r.cur.id === me.id;
+  const pos = (r.queue || []).findIndex((q) => q.id === me.id);
+  if (isCur || pos >= 0) { if (!me.seen) { me.seen = true; save(); } }
+
+  // けっか
+  if (r.last && r.last.id === me.id && r.last.n !== me.lastResult) {
+    me.lastResult = r.last.n; save();
+    const p = r.last.prize;
+    if (p) { coll.push(p.emoji); localStorage.setItem('crane-collection', JSON.stringify(coll)); navigator.vibrate?.([80, 60, 80, 60, 200]); }
+    $('r-emoji').textContent = p ? p.emoji : '😢';
+    $('r-text').textContent = p ? `${p.name} ゲット！` : 'ざんねん…';
+    $('r-sub').textContent = p ? 'おめでとう！' : 'つぎは とれるかも！';
+    $('result').classList.add('on'); setTimeout(() => $('result').classList.remove('on'), 2400);
+  }
+
+  if (isCur) {
+    show('play');
+    const ph = r.phase;
+    $('left').textContent = `のこり ${r.cur.left} かい`;
+    $('status').textContent = ph === 'x' ? '① を ながおしして よこに うごかそう！'
+      : ph === 'z' ? '② を ながおしして おくに うごかそう！' : 'スクリーンを みてね！';
+    if (sentUp && sentUp !== ph) sentUp = null;
+    $('bx').classList.toggle('off', ph !== 'x' || sentUp === 'x');
+    $('bz').classList.toggle('off', ph !== 'z' || sentUp === 'z');
+  } else if (pos >= 0) {
+    show('wait');
+    $('waitpos').textContent = pos === 0 ? 'つぎは あなたの ばん！' : `あと ${pos} 人`;
+  } else if (!me.seen) {
+    show('wait'); $('waitpos').textContent = 'ならんでいるよ…';
+  } else { renderColl(); show('done'); }
+}
+
+function join() {
+  if (!roomData) return;
+  const name = ($('name').value.trim() || 'ゲスト' + Math.floor(10 + Math.random() * 90)).slice(0, 8);
+  localStorage.setItem('crane-name', $('name').value.trim());
+  me.epoch = roomData.epoch; me.join++; me.seen = false; sentUp = null; save();
+  net.setPlayer(me.id, { name, epoch: me.epoch, join: me.join });
+  render();
+}
+$('join').addEventListener('click', join);
+$('again').addEventListener('click', join);
+
+function send(k, down, dur) {
+  me.n++; save();
+  net.setPlayer(me.id, { ev: { n: me.n, k, down, dur: dur ?? null } });
+}
+function bindPad(el, k) {
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (holding || el.classList.contains('off')) return;
+    try { el.setPointerCapture(e.pointerId); } catch {}
+    holding = { k, t0: performance.now() }; el.classList.add('down'); navigator.vibrate?.(30);
+    send(k, true);
+  });
+  const up = () => {
+    if (!holding || holding.k !== k) return;
+    const dur = Math.round(performance.now() - holding.t0);
+    holding = null; el.classList.remove('down'); sentUp = k; el.classList.add('off');
+    send(k, false, dur);
+    // スクリーンが つぎに すすまなかったとき（よみこみなおし など）は、もういちど おせるようにする
+    setTimeout(() => { if (sentUp === k) { sentUp = null; render(); } }, 4000);
+  };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up); el.addEventListener('lostpointercapture', up);
+  el.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+bindPad($('bx'), 'x'); bindPad($('bz'), 'z');
+
+if (!room) { show('noroom'); $('v-noroom').querySelector('p').textContent = 'スクリーンの QRコードを よみとってね。'; }
+else {
+  show('load');
+  const onError = (e) => { console.error(e); show('noroom'); $('v-noroom').querySelector('p').textContent = 'つながりませんでした。でんぱを かくにんして、もういちど よみこんでね。'; };
+  createNet(room, { local: LOCAL, onError }).then((n) => {
+    net = n; net.onRoom((r) => { roomData = r; render(); });
+    setInterval(render, 30000);
+  }).catch(onError);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スマホでクレーンゲーム（スクリーン）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --panel: 25vw; --pink: #ff5fa2; --yellow: #ffd93b; --navy: #1b1447; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1447;
+    font-family: "M PLUS Rounded 1c", "Hiragino Maru Gothic ProN", "Yu Gothic UI", sans-serif; color: #fff; }
+  canvas#gl { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+
+  #title { position: fixed; left: 2vw; top: 1.5vh; font-size: 4.2vh; font-weight: 900; letter-spacing: .05em;
+    text-shadow: 0 .4vh 0 var(--pink), 0 .8vh 1.6vh rgba(0,0,0,.5); }
+  #title small { display: block; font-size: 2vh; color: var(--yellow); text-shadow: 0 .2vh .6vh rgba(0,0,0,.6); }
+
+  #panel { position: fixed; right: 0; top: 0; bottom: 0; width: var(--panel); padding: 2vh 1.4vw;
+    background: linear-gradient(180deg, rgba(40,26,110,.92), rgba(20,12,60,.96)); border-left: .5vh solid var(--pink);
+    display: flex; flex-direction: column; gap: 1.6vh; }
+  .card { background: rgba(255,255,255,.1); border-radius: 2vh; padding: 1.4vh 1vw; }
+  .card h2 { margin: 0 0 .8vh; font-size: 2.2vh; color: var(--yellow); }
+  #qrcard { text-align: center; }
+  #qr { background: #fff; border-radius: 1.4vh; padding: 1vh; width: 100%; aspect-ratio: 1; display: grid; place-items: center; }
+  #qr svg, #qr img { width: 100%; height: 100%; display: block; }
+  #qrcard p { margin: .8vh 0 0; font-size: 2.1vh; line-height: 1.35; }
+  #roomcode { font-size: 1.6vh; opacity: .7; }
+  #now { font-size: 3.2vh; font-weight: 900; min-height: 4.4vh; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #left { font-size: 2.2vh; color: var(--yellow); min-height: 3vh; }
+  #queue { margin: 0; padding: 0; list-style: none; font-size: 2.2vh; }
+  #queue li { padding: .4vh 0; border-bottom: 1px dashed rgba(255,255,255,.2); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  #queue li b { color: var(--yellow); margin-right: .5em; }
+  #queue .none { opacity: .6; border: 0; }
+  #gets { display: flex; flex-wrap: wrap; gap: .3vh; font-size: 3vh; min-height: 3.6vh; }
+  #queuecard { flex: 1; min-height: 0; overflow: hidden; }
+
+  #guide { position: fixed; left: 2vw; bottom: 2vh; font-size: 2.6vh; font-weight: 900; padding: 1vh 1.4vw;
+    background: rgba(0,0,0,.45); border-radius: 99vh; max-width: calc(100vw - var(--panel) - 4vw); }
+
+  #banner { position: fixed; left: 0; right: var(--panel); top: 32vh; text-align: center; pointer-events: none;
+    font-weight: 900; font-size: 11vh; line-height: 1.15; opacity: 0; transform: scale(.6);
+    transition: opacity .25s, transform .35s cubic-bezier(.2,1.6,.4,1);
+    text-shadow: 0 .8vh 0 var(--pink), 0 1.4vh 3vh rgba(0,0,0,.6); }
+  #banner.show { opacity: 1; transform: scale(1); }
+  #banner small { display: block; font-size: 5vh; color: var(--yellow); text-shadow: 0 .4vh 1vh rgba(0,0,0,.7); }
+  #banner .big { font-size: 20vh; display: block; line-height: 1.1; text-shadow: 0 1vh 3vh rgba(0,0,0,.5); }
+
+  .confetti { position: fixed; top: -6vh; font-size: 4vh; pointer-events: none; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(115vh) rotate(720deg); } }
+
+  #start { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; text-align: center;
+    background: rgba(20,12,60,.82); cursor: pointer; }
+  #start div { font-size: 6vh; font-weight: 900; }
+  #start small { display: block; font-size: 2.6vh; margin-top: 2vh; color: var(--yellow); }
+  #err { position: fixed; left: 2vw; top: 12vh; max-width: 50vw; background: #c0143c; padding: 1vh 1vw; border-radius: 1vh;
+    font-size: 1.9vh; display: none; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="guide">スマホで QRコードを よみとってね</div>
+<div id="banner"></div>
+<div id="err"></div>
+
+<aside id="panel">
+  <div class="card" id="qrcard">
+    <div id="qr"></div>
+    <p>📱 スマホが<br>コントローラーに なるよ</p>
+    <div id="roomcode"></div>
+  </div>
+  <div class="card">
+    <h2>🎮 いま あそんでいる人</h2>
+    <div id="now">—</div>
+    <div id="left"></div>
+  </div>
+  <div class="card" id="queuecard">
+    <h2>⏳ じゅんばんまち</h2>
+    <ol id="queue"></ol>
+  </div>
+  <div class="card">
+    <h2>🎁 ゲットされた けいひん</h2>
+    <div id="gets"></div>
+  </div>
+</aside>
+
+<div id="start"><div>🕹️ クリックして スタート<small>音が出ます ／ F キーで全画面 ／ キーボードの → と ↑ でも遊べます</small></div></div>
+
+<script type="module" src="js/screen.js"></script>
+</body>
+</html>
