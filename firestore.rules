@@ -1,9 +1,5 @@
 rules_version = '2';
 
-// クレーンゲーム用のルールです。
-// Firebase コンソール → Firestore → ルール で、いまあるルールの
-// 「それ以外は禁止」の上に、下の match /crane_rooms/... のブロックを足してください。
-// （aruite-monster を使う場合は、あるいてモンスターのルールはそのまま残します）
 service cloud.firestore {
   match /databases/{database}/documents {
 

@@ -22,9 +22,9 @@
 
 ## 通信（Firestore）
 
-スクリーンとスマホは Firestore でつながります（`js/firebase-config.js`）。
-Firebase コンソールの Firestore ルールに、`firestore.rules` の `crane_rooms` のブロックを足してください。
-これが無いと、スクリーンに赤い「つながりません」の表示が出ます。
+スクリーンとスマホは Firestore でつながります。Firebase プロジェクトはクレーンゲーム専用の `kaken-cranegame`（設定は `js/firebase-config.js`）。
+Firestore のルールは `firestore.rules` と同じものをコンソールで公開しています。
+つながらないときは、スクリーンに赤い「つながりません」の表示が出ます。
 
 ## テスト用
 
